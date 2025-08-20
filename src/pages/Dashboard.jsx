@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Breadcrumbs from './Breadcrumbs';
 import api from '../api';
@@ -11,8 +11,10 @@ export default function Dashboard(){
     const [uploading, setUploading] = useState(false);
     const [progress, setProgress] = useState(0);
     const [preview, setPreview] = useState(null);
+    const [isDragActive, setIsDragActive] = useState(false);
 
     const navigate = useNavigate();
+    const fileInputRef = useRef(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -55,6 +57,7 @@ export default function Dashboard(){
         }
 
         uploadFile(file);
+        setIsDragActive(false);
     }, []);
 
     const uploadFile = async (file) => {
@@ -103,21 +106,46 @@ export default function Dashboard(){
                 <div className="flex items-center justify-between p-4 border-b">
                     <Breadcrumbs path={path} onNavigate={handleNavigate} />
                     <div className="space-x-2">
-                        <button className="px-3 py-1 bg-blue-600 text-white rounded-md">
+                        <button 
+                            className="px-3 py-1 bg-blue-600 text-white rounded-md"
+                            onClick={() => fileInputRef.current?.click()}
+                        >
                             Upload
                         </button>
+
+                        <input 
+                            type="file" 
+                            ref={fileInputRef}
+                            className="hidden"
+                            onChange={(e) => onDrop(Array.from(e.target.files))}
+                        />
                     </div>
                 </div>
 
                 <div 
                     className="p-4 grid grid-cols-4 gap-4"
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                        e.preventDefault();
-                        const files = Array.from(e.dataTransfer.files);
-                        onDrop(files);
-                    }}
                 >
+
+                    <div className={`col-span-4 border-2 border-dashed rounded-md p-6 text-center transition
+                        ${isDragActive ? "border-blue-500 bg-blue-50" : "border-gray-300 bg-gray-100"}`}
+                        onDragOver={(e) => {
+                        e.preventDefault();
+                        setIsDragActive(true);
+                        }}
+                        onDragLeave={() => setIsDragActive(false)}
+                        onDrop={(e) => {
+                            e.preventDefault();
+                            const files = Array.from(e.dataTransfer.files);
+                            onDrop(files);
+                        }}
+                    >
+                        <p className="text-gray-600">
+                            {isDragActive
+                                ? "Drop files here..."
+                                : "Drag & drop files here"
+                            }
+                        </p>
+                    </div>
 
                     {preview && (
                         <div className="col-span-4 border-2 border-dashed border-blue-400 p-4 rounded-md text-center">
@@ -128,7 +156,7 @@ export default function Dashboard(){
                                 ) : (
                                     <p className="text-sm text-gray-600">Preview not supported for this file</p>
                             )}
-                            {uploading && <p className="mt-2">Uploading... {progress}%</p>}
+                            {uploading && <p className="mt-2 text-gray-700">Uploading... {progress}%</p>}
                         </div>
                     )}
 
