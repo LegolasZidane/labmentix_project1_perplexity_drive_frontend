@@ -1,6 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Breadcrumbs from './Breadcrumbs';
+import FileItem from './FileItem';
+import FolderItem from './FolderItem';
+import CreateFolderButton from "./CreateFolderButton";
 import api from '../api';
 import toast, { Toaster } from "react-hot-toast";
 
@@ -10,7 +13,6 @@ export default function Dashboard(){
     const [path, setPath] = useState(["My Drive"]);
     const [uploading, setUploading] = useState(false);
     const [progress, setProgress] = useState(0);
-    const [preview, setPreview] = useState(null);
     const [isDragActive, setIsDragActive] = useState(false);
 
     const navigate = useNavigate();
@@ -30,7 +32,12 @@ export default function Dashboard(){
                 const res = await api.get("/folders", {
                     headers: { Authorization: `Bearer ${token}`}
                 });
-                setItems([...(res.data.folders || []), ...(res.data.files || [])]);
+
+                const folders = (res.data.folders || []).map(f => ({ ...f, type: "folder" }));
+                const files = (res.data.files || []).map(f => ({ ...f, type: "file" }));
+
+
+                setItems([...folders, ...files]);
             }   catch(error){
                 console.log(error);
             }
@@ -47,14 +54,6 @@ export default function Dashboard(){
     const onDrop = useCallback((acceptedFiles) => {
         const file = acceptedFiles[0];
         if( !file ) return;
-
-        if( 
-            file.type.startsWith("image/") || 
-            file.type === "application/pdf" ||
-            file.type.startsWith("text/")
-        ) {
-            setPreview(URL.createObjectURL(file));
-        }
 
         uploadFile(file);
         setIsDragActive(false);
@@ -91,13 +90,12 @@ export default function Dashboard(){
         }   finally{
             setUploading(false);
             setProgress(0);
-            setPreview(null);
         }
     };
 
     return (
         <div className="flex h-screen relative">
-            <Toaster />
+            <Toaster position="top-right" />
             <div className="w-64 bg-gray-100 border-r p-4">
                 <h2 className="text-lg font-bold">Perplexity Drive</h2>
             </div>
@@ -112,6 +110,11 @@ export default function Dashboard(){
                         >
                             Upload
                         </button>
+
+                        <CreateFolderButton
+                            currentFolderId={path.length > 1 ? path[path.length - 1] : null}
+                            onFolderCreated={(newFolder) => setItems((prev) => [newFolder, ...prev])}
+                        />
 
                         <input 
                             type="file" 
@@ -145,27 +148,48 @@ export default function Dashboard(){
                                 : "Drag & drop files here"
                             }
                         </p>
+                        {uploading && 
+                            <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                                <div 
+                                    className="bg-blue-600 h-2 rounded-full"
+                                    style={{width: `${progress}%`}}
+                                >
+                                </div>
+                            </div>
+                        }
                     </div>
 
-                    {preview && (
-                        <div className="col-span-4 border-2 border-dashed border-blue-400 p-4 rounded-md text-center">
-                            {preview.endsWith(".pdf") ? (
-                                    <embed src={preview} type="application/pdf" width="100%" height="150px" />
-                                ) : preview.startsWith("blob:") && preview.includes("image") ? (
-                                    <img src={preview} alt="preview" className="mx-auto max-h-40" />
-                                ) : (
-                                    <p className="text-sm text-gray-600">Preview not supported for this file</p>
-                            )}
-                            {uploading && <p className="mt-2 text-gray-700">Uploading... {progress}%</p>}
-                        </div>
-                    )}
-
                     {items && items.map(item => (
-                        <div key={item.id} className="border rounded-lg p-4 hover:shadow cursor-pointer">
-                            <p className="font-medium">
-                                {item.type === "folder" ? "📁" : "📄"} {item.name}
-                            </p>
-                        </div>
+                        item.type === "folder" ? (
+                            <FolderItem
+                                key={item.id}
+                                folder={item}
+                                onRename={(id, newName) => {
+                                    setItems(prev =>
+                                        prev.map(f => 
+                                            f.id === id ? {...f, name: newName} : f
+                                        )
+                                    );
+                                }}
+                                onDelete={(id) => {
+                                    setItems(prev => prev.filter(f => f.id !== id ));
+                                }}
+                            />
+                        ) : (
+                            <FileItem 
+                                key={item.id} 
+                                file={item} 
+                                onOpenFolder={(folderId) => setPath([...path, folderId])}
+                                onRename={(id, newName) => {
+                                    setItems(prev => 
+                                        prev.map(f=> f.id === id ? { ...f, name: newName } : f)
+                                    );
+                                }}
+                                onDelete={(id) => {
+                                    setItems(prev => prev.filter(f => f.id !== id ));
+                                }}
+                            />
+                        )
                     ))}
                 </div>
             </div>
