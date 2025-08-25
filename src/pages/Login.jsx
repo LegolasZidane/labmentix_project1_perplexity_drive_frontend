@@ -1,15 +1,30 @@
-import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
 import api from "../api";
+import toast, { Toaster } from "react-hot-toast";
 
 export default function Login(){
 
     const [form, setForm] = useState({ email: "", password: "" });
     const [error, setError] = useState("");
+
+    const location = useLocation();
     const navigate = useNavigate();
+    const shownToast = useRef(false);
+
+    useEffect(() => {
+        
+        if( location.state?.fromSignup && !shownToast.current ){
+            toast.success("Signup successful! Now login to continue");
+            shownToast.current = true;
+
+            navigate(location.pathname, { replace: true });
+        }
+    }, [location.state, navigate, location.pathname]);
 
     const handleChange = (e) => {
         setForm({ ...form, [e.target.name]: e.target.value});
+        if( error ) setError("");
     };
 
     const handleSubmit = async (e) => {
@@ -26,6 +41,7 @@ export default function Login(){
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-900">
+            <Toaster position="top-right" />
             <div className="bg-gray-800 p-8 rounded-2xl shadow-lg w-96">
                 <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
                     <h2 className="text-2xl font-bold text-white mb-6 text-center">Log In</h2>

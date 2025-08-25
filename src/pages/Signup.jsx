@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import api from "../api";
+import toast from "react-hot-toast";
 
 export default function Signup(){
 
@@ -16,7 +17,7 @@ export default function Signup(){
         e.preventDefault();
         try{
             await api.post("/auth/signup", form);
-            navigate("/login");
+            navigate("/login", { state: { fromSignup: true } });
         }   catch(error){
             setError(error.response?.data?.error || "Something went wrong in Signup.jsx")
         }
